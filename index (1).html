@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خدمة البريد المؤقت للرسائل وأكواد التحقق - Temp-SMS Sandbox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .pulse-dot {
+            width: 10px;
+            height: 100px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-4">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                بيئة معزولة لاختبارات أكواد التحقق (Sandbox API)
+            </div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
+                نظام <span class="text-emerald-400">Temp-SMS</span> المؤقت
+            </h1>
+            <p class="text-slate-400 max-w-xl mx-auto text-sm md:text-base">
+                استقبل أكواد التحقق لمرة واحدة (OTP) عبر أرقام افتراضية لاختبار تطبيقاتك وتجاربك البرمجية دون الاعتماد على البوابات العامة أو المنصات المدفوعة.
+            </p>
+        </header>
+
+        <!-- API Configuration / Status Bar -->
+        <div class="glass-card rounded-xl p-4 mb-6 text-sm">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-3">
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <i class="fa-solid fa-server text-emerald-400"></i>
+                    <span class="text-slate-300">رابط خادم واجهة الـ API (Backend):</span>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <input type="text" id="api-base-url" value="" 
+                        class="bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-200 text-xs w-full md:w-72 focus:outline-none focus:border-emerald-500 text-left" 
+                        dir="ltr" placeholder="https://your-app.onrender.com">
+                    <button onclick="saveApiUrl()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs transition">
+                        حفظ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Phone Card -->
+        <div class="glass-card rounded-2xl p-6 md:p-8 mb-8 shadow-2xl">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <!-- Current Phone Display -->
+                <div class="w-full md:w-2/3 text-center md:text-right">
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2">
+                        رقم الهاتف الافتراضي النشط (E.164)
+                    </label>
+                    <div class="flex items-center justify-center md:justify-start gap-3">
+                        <span id="phone-display" class="text-2xl md:text-3xl font-black text-white font-mono tracking-wide" dir="ltr">
+                            جاري الاتصال بالنظام...
+                        </span>
+                        <button onclick="copyPhoneNumber()" id="copy-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 p-2 rounded-lg text-sm transition" title="نسخ الرقم">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-center md:justify-start gap-4 mt-3 text-xs text-slate-400">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-regular fa-clock text-emerald-400"></i>
+                            صالح لمدة: <strong id="timer-display" class="text-slate-200">10:00</strong>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right text-emerald-400" id="refresh-icon"></i>
+                            تحديث تلقائي كل 5 ثوانٍ
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="w-full md:w-1/3 flex flex-col gap-2.5">
+                    <button onclick="generateNewNumber()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        توليد رقم جديد
+                    </button>
+                    <button onclick="simulateSmsSend()" id="simulate-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        محاكاة إرسال OTP تجريبي
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inbox Section -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-xl">
+            <div class="p-5 border-b border-slate-700/60 flex items-center justify-between bg-slate-800/40">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-inbox text-emerald-400 text-lg"></i>
+                    <h2 class="font-bold text-lg">صندوق الرسائل الواردة (Inbox)</h2>
+                    <span id="msg-count-badge" class="bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
+                </div>
+                <button onclick="fetchInbox(true)" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition border border-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate text-emerald-400"></i>
+                    تحديث الآن
+                </button>
+            </div>
+
+            <!-- Message List -->
+            <div id="inbox-container" class="divide-y divide-slate-700/40 min-h-[220px]">
+                <!-- Empty State -->
+                <div id="empty-state" class="py-16 text-center text-slate-500">
+                    <i class="fa-regular fa-comment-dots text-4xl mb-3 block opacity-40"></i>
+                    <p class="text-sm font-medium">بانتظار وصول رسائل التحقق أو أكواد OTP...</p>
+                    <p class="text-xs opacity-75 mt-1">ستظهر الرسائل هنا فور استقبالها عبر الـ Webhook أو الـ API.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook Integration Instruction Card -->
+        <div class="mt-6 glass-card rounded-xl p-5 text-xs text-slate-400 border-dashed border-slate-700">
+            <div class="font-bold text-slate-300 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-code text-indigo-400"></i>
+                كيفية استقبال الرسائل من تطبيقك (Webhook Endpoint):
+            </div>
+            <p class="mb-2">لإرسال كود تحقق من نظامك أو السيرفر الخاص بك إلى هذا الصندوق، أرسل طلب <code class="text-emerald-400 bg-slate-900 px-1.5 py-0.5 rounded font-mono">POST</code> إلى:</p>
+            <div class="bg-slate-950 p-3 rounded-lg font-mono text-slate-300 select-all overflow-x-auto text-left" dir="ltr">
+                POST <span id="webhook-url-display">/api/v1/sms/webhook</span><br>
+                Content-Type: application/json<br><br>
+                {
+                  "phone_number": "<span id="example-phone">+966XXXXXXXXX</span>",
+                  "otp_code": "481920",
+                  "message_body": "رمز التحقق الخاص بك هو 481920. صالح لمدة 10 دقائق.",
+                  "sender": "YOUR-APP"
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-5 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <i class="fa-solid fa-check-circle text-emerald-400"></i>
+        <span id="toast-text"></span>
+    </div>
+
+    <script>
+        // إعداد عنوان الخادم (يمكن تغييره إذا تم رفع السيرفر على Render أو Railway)
+        let API_BASE_URL = window.location.origin;
+        if (API_BASE_URL.includes("github.io") || API_BASE_URL.includes("file://")) {
+            API_BASE_URL = "http://localhost:8000"; // القيمة الافتراضية أثناء التطوير المحلي
+        }
+
+        let currentPhoneNumber = null;
+        let expiresAtTimestamp = null;
+        let pollingInterval = null;
+        let timerInterval = null;
+
+        // عند تحميل الصفحة
+        window.addEventListener("DOMContentLoaded", () => {
+            const savedUrl = localStorage.getItem("temp_sms_api_url");
+            if (savedUrl) {
+                API_BASE_URL = savedUrl;
+            }
+            document.getElementById("api-base-url").value = API_BASE_URL;
+            updateWebhookUrlDisplay();
+            generateNewNumber();
+        });
+
+        function updateWebhookUrlDisplay() {
+            document.getElementById("webhook-url-display").textContent = `${API_BASE_URL}/api/v1/sms/webhook`;
+            if (currentPhoneNumber) {
+                document.getElementById("example-phone").textContent = currentPhoneNumber;
+            }
+        }
+
+        function saveApiUrl() {
+            const inputUrl = document.getElementById("api-base-url").value.trim();
+            if (inputUrl) {
+                API_BASE_URL = inputUrl.replace(/\/$/, "");
+                localStorage.setItem("temp_sms_api_url", API_BASE_URL);
+                updateWebhookUrlDisplay();
+                showToast("تم حفظ عنوان خادم الـ API بنجاح");
+                generateNewNumber();
+            }
+        }
+
+        async function generateNewNumber() {
+            try {
+                document.getElementById("phone-display").textContent = "جاري التوليد...";
+                const response = await fetch(`${API_BASE_URL}/api/v1/numbers/create?country_code=+966&ttl_seconds=600`, {
+                    method: "POST"
+                });
+
+                if (!response.ok) {
+                    throw new Error("فشل الاتصال بالخادم");
+                }
+
+                const data = await response.json();
+                currentPhoneNumber = data.phone_number;
+                expiresAtTimestamp = data.expires_at;
+
+                document.getElementById("phone-display").textContent = currentPhoneNumber;
+                updateWebhookUrlDisplay();
+                showToast("تم توليد رقم افتراضي جديد بنجاح");
+
+                // تفريغ الصندوق وبدء العداد والاستعلام الدوري
+                renderMessages([]);
+                startTimer();
+                startPolling();
+            } catch (error) {
+                console.error("Error generating number:", error);
+                document.getElementById("phone-display").textContent = "+966500000000";
+                currentPhoneNumber = "+966500000000";
+                expiresAtTimestamp = (Date.now() / 1000) + 600;
+                updateWebhookUrlDisplay();
+                startTimer();
+                startPolling();
+                showToast("تنبيه: يعمل النظام بالوضع المحلي الافتراضي");
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!expiresAtTimestamp) return;
+                const now = Date.now() / 1000;
+                const diff = Math.max(0, Math.floor(expiresAtTimestamp - now));
+
+                const minutes = Math.floor(diff / 60).toString().padStart(2, "0");
+                const seconds = (diff % 60).toString().padStart(2, "0");
+                document.getElementById("timer-display").textContent = `${minutes}:${seconds}`;
+
+                if (diff === 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById("phone-display").textContent = "انتهت الصلاحية";
+                    if (pollingInterval) clearInterval(pollingInterval);
+                }
+            }, 1000);
+        }
+
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            fetchInbox();
+            pollingInterval = setInterval(() => {
+                fetchInbox(false);
+            }, 5000);
+        }
+
+        async function fetchInbox(isManual = false) {
+            if (!currentPhoneNumber) return;
+            try {
+                if (isManual) {
+                    document.getElementById("refresh-icon").classList.add("animate-spin");
+                }
+                const response = await fetch(`${API_BASE_URL}/api/v1/inbox/${encodeURIComponent(currentPhoneNumber)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderMessages(data.messages || []);
+                }
+            } catch (error) {
+                console.warn("Could not fetch inbox:", error);
+            } finally {
+                if (isManual) {
+                    setTimeout(() => {
+                        document.getElementById("refresh-icon").classList.remove("animate-spin");
+                    }, 500);
+                }
+            }
+        }
+
+        async function simulateSmsSend() {
+            if (!currentPhoneNumber) return;
+            const btn = document.getElementById("simulate-btn");
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> جاري الإرسال...`;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/sms/simulate`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ phone_number: currentPhoneNumber })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast(`تم إرسال كود تجريبي: ${data.generated_otp}`);
+                    await fetchInbox(true);
+                } else {
+                    throw new Error("فشل محاكاة الإرسال");
+                }
+            } catch (error) {
+                // في حال تعذر الاتصال بالسيرفر في وضع المعاينة الساكنة
+                console.error("Simulation error:", error);
+                const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                showToast(`كود محاكاة محلي: ${mockOtp}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> محاكاة إرسال OTP تجريبي`;
+            }
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById("inbox-container");
+            const badge = document.getElementById("msg-count-badge");
+            badge.textContent = messages.length;
+
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div id="empty-state" class="py-16 text-center text-slate-500">
+                        <i class="fa-regular fa-comment-dots text-4xl mb-3 block opacity-40"></i>
+                        <p class="text-sm font-medium">بانتظار وصول رسائل التحقق أو أكواد OTP...</p>
+                        <p class="text-xs opacity-75 mt-1">ستظهر الرسائل هنا فور استقبالها عبر الـ Webhook أو الـ API.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = messages.map(msg => `
+                <div class="p-5 hover:bg-slate-800/30 transition flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                            <i class="fa-solid fa-message text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-slate-200 text-sm">${msg.sender || "SYSTEM"}</span>
+                                <span class="text-[11px] text-slate-500 font-mono" dir="ltr">${msg.received_at_iso || "الآن"}</span>
+                            </div>
+                            <p class="text-slate-300 text-sm leading-relaxed">${msg.body}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3 self-end md:self-center shrink-0">
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block">كود OTP</span>
+                            <span class="text-xl font-extrabold text-emerald-400 font-mono tracking-wider" dir="ltr">${msg.otp_code}</span>
+                        </div>
+                        <button onclick="copyText('${msg.otp_code}')" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg text-xs transition" title="نسخ الكود">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function copyPhoneNumber() {
+            if (!currentPhoneNumber) return;
+            copyText(currentPhoneNumber);
+            showToast("تم نسخ رقم الهاتف بنجاح");
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`تم النسخ: ${text}`);
+            }).catch(() => {
+                showToast("تعذر النسخ تلقائياً");
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            const toastText = document.getElementById("toast-text");
+            toastText.textContent = message;
+            toast.classList.remove("translate-y-24", "opacity-0");
+            setTimeout(() => {
+                toast.classList.add("translate-y-24", "opacity-0");
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
